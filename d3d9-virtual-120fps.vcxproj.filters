@@ -36,7 +36,7 @@
     <ClCompile Include="d3d9\device.cpp">
       <Filter>源文件\d3d9</Filter>
     </ClCompile>
-    <ClCompile Include="d3d9\swapchain_ex.cpp">
+    <ClCompile Include="d3d9ex\swapchain_ex.cpp">
       <Filter>源文件\d3d9ex</Filter>
     </ClCompile>
   </ItemGroup>

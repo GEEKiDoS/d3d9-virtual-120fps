@@ -150,9 +150,9 @@
   <ItemGroup>
     <ClCompile Include="d3d9ex\device_ex.cpp" />
     <ClCompile Include="d3d9ex\interface_ex.cpp" />
+    <ClCompile Include="d3d9ex\swapchain_ex.cpp" />
     <ClCompile Include="d3d9\device.cpp" />
     <ClCompile Include="d3d9\interface.cpp" />
-    <ClCompile Include="d3d9\swapchain_ex.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
