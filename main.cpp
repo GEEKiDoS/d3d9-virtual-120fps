@@ -21,19 +21,29 @@ namespace
 		return now.QuadPart / static_cast<double>(freq.QuadPart) * 1000.f;
 	}
 
+	size_t injected_displaymode_idx = 0;
+
 	BOOL WINAPI enum_display_settings_hook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVMODEA* lpDevMode)
 	{
-		if (iModeNum >= config.mode_count)
-			return false;
+		if (!AS(EnumDisplaySettingsA, enum_display_settings_orig)(lpszDeviceName, iModeNum, lpDevMode))
+		{
+			if (injected_displaymode_idx >= config.mode_count)
+				return false;
 
-		auto mode = &config.modes[iModeNum];
-		
-		lpDevMode->dmPelsWidth = mode->Width;
-		lpDevMode->dmPelsHeight = mode->Height;
-		lpDevMode->dmDisplayFrequency = mode->RefreshRate;
-		lpDevMode->dmBitsPerPel = 32;
-		lpDevMode->dmDisplayFlags = 0;
+			auto mode = &config.modes[injected_displaymode_idx];
 
+			lpDevMode->dmPelsWidth = mode->Width;
+			lpDevMode->dmPelsHeight = mode->Height;
+			lpDevMode->dmDisplayFrequency = mode->RefreshRate;
+			lpDevMode->dmBitsPerPel = 32;
+			lpDevMode->dmDisplayFlags = 0;
+
+			injected_displaymode_idx++;
+
+			return true;
+		}
+
+		injected_displaymode_idx = 0;
 		return true;
 	}
 }
@@ -121,7 +131,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 	for (auto i = 0u; i < config.mode_count; i++)
 	{
-		sprintf(tmp, "mode%d", i + 1);
+		sprintf(tmp, "mode%d", i);
 		GetPrivateProfileStringA("modes", tmp, "1920x1080@120", tmp, MAX_PATH, "./d3d9_proxy.ini");
 
 		int width, height, hz;
@@ -169,6 +179,12 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	{
 		log("d3d9 proxy: failed to initialize minhook.\n");
 		return FALSE;
+	}
+
+	if (config.mode_count)
+	{
+		MH_CreateHook(EnumDisplaySettingsA, enum_display_settings_hook, &enum_display_settings_orig);
+		MH_EnableHook(EnumDisplaySettingsA);
 	}
 
 	return TRUE;
