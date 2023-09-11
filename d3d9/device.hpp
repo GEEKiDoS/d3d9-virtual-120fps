@@ -7,6 +7,8 @@ private:
 	IDirect3DDevice9* m_device;
 	double m_lastTime;
 
+	std::unordered_map<IDirect3DSwapChain9*, d3d9ex_swapchain_proxy*> m_swapchains;
+
 public:
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObj) override;
 	virtual ULONG __stdcall AddRef(void) override;

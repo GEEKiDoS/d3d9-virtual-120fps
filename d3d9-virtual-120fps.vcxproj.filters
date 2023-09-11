@@ -1,68 +1,95 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
-    </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
-    </Filter>
-    <Filter Include="资源文件">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
-    <Filter Include="源文件\d3d9ex">
-      <UniqueIdentifier>{4593e015-b111-4d9b-875a-7151ec614421}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="源文件\d3d9">
+    <Filter Include="d3d9">
       <UniqueIdentifier>{ee2b4574-c7bd-4d66-a6a6-c3698ba9dae0}</UniqueIdentifier>
     </Filter>
+    <Filter Include="d3d9ex">
+      <UniqueIdentifier>{4593e015-b111-4d9b-875a-7151ec614421}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps">
+      <UniqueIdentifier>{7119091f-4d65-4fd6-9a7a-25534b0c1e38}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\minhook">
+      <UniqueIdentifier>{30c69326-184a-40f7-abb2-15add4d7038b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="deps\minhook\hde">
+      <UniqueIdentifier>{353a9595-462f-4a7e-ad57-c87b5ff9350d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="d3d9ex\interface_ex.cpp">
-      <Filter>源文件\d3d9ex</Filter>
+      <Filter>d3d9ex</Filter>
     </ClCompile>
     <ClCompile Include="d3d9ex\device_ex.cpp">
-      <Filter>源文件\d3d9ex</Filter>
+      <Filter>d3d9ex</Filter>
     </ClCompile>
     <ClCompile Include="d3d9\interface.cpp">
-      <Filter>源文件\d3d9</Filter>
+      <Filter>d3d9</Filter>
     </ClCompile>
     <ClCompile Include="d3d9\device.cpp">
-      <Filter>源文件\d3d9</Filter>
+      <Filter>d3d9</Filter>
     </ClCompile>
     <ClCompile Include="d3d9ex\swapchain_ex.cpp">
-      <Filter>源文件\d3d9ex</Filter>
+      <Filter>d3d9ex</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="exports.def">
-      <Filter>源文件</Filter>
-    </None>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="deps\minhook\src\buffer.c">
+      <Filter>deps\minhook</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\minhook\src\hook.c">
+      <Filter>deps\minhook</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\minhook\src\trampoline.c">
+      <Filter>deps\minhook</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\minhook\src\hde\hde64.c">
+      <Filter>deps\minhook\hde</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\minhook\src\hde\hde32.c">
+      <Filter>deps\minhook\hde</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3d9ex\device_ex.hpp">
-      <Filter>源文件\d3d9ex</Filter>
+      <Filter>d3d9ex</Filter>
     </ClInclude>
     <ClInclude Include="d3d9ex\interface_ex.hpp">
-      <Filter>源文件\d3d9ex</Filter>
-    </ClInclude>
-    <ClInclude Include="stdinc.hpp">
-      <Filter>源文件</Filter>
+      <Filter>d3d9ex</Filter>
     </ClInclude>
     <ClInclude Include="d3d9\device.hpp">
-      <Filter>源文件\d3d9</Filter>
+      <Filter>d3d9</Filter>
     </ClInclude>
     <ClInclude Include="d3d9\interface.hpp">
-      <Filter>源文件\d3d9</Filter>
+      <Filter>d3d9</Filter>
     </ClInclude>
     <ClInclude Include="d3d9ex\swapchain_ex.hpp">
-      <Filter>源文件\d3d9ex</Filter>
+      <Filter>d3d9ex</Filter>
     </ClInclude>
+    <ClInclude Include="stdinc.hpp" />
+    <ClInclude Include="deps\minhook\src\buffer.h">
+      <Filter>deps\minhook</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\minhook\src\trampoline.h">
+      <Filter>deps\minhook</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\minhook\src\hde\hde32.h">
+      <Filter>deps\minhook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\minhook\src\hde\hde64.h">
+      <Filter>deps\minhook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\minhook\src\hde\pstdint.h">
+      <Filter>deps\minhook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\minhook\src\hde\table32.h">
+      <Filter>deps\minhook\hde</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\minhook\src\hde\table64.h">
+      <Filter>deps\minhook\hde</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="exports.def" />
   </ItemGroup>
 </Project>

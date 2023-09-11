@@ -6,10 +6,6 @@ class d3d9ex_proxy : public IDirect3D9Ex
 public:
 	d3d9ex_proxy(IDirect3D9Ex* orig);
 
-private:
-	IDirect3D9Ex* m_d3d;
-
-public:
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObj) override;
 	virtual ULONG __stdcall AddRef(void) override;
 	virtual ULONG __stdcall Release(void) override;
@@ -32,4 +28,9 @@ public:
 	virtual HRESULT __stdcall GetAdapterDisplayModeEx(UINT Adapter, D3DDISPLAYMODEEX* pMode, D3DDISPLAYROTATION* pRotation) override;
 	virtual HRESULT __stdcall CreateDeviceEx(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, D3DDISPLAYMODEEX* pFullscreenDisplayMode, IDirect3DDevice9Ex** ppReturnedDeviceInterface) override;
 	virtual HRESULT __stdcall GetAdapterLUID(UINT Adapter, LUID* pLUID) override;
+
+private:
+	HRESULT modify_present_params(UINT Adapter, D3DPRESENT_PARAMETERS* pPresentationParameters, D3DDISPLAYMODEEX* pFullscreenDisplayMode);
+
+	IDirect3D9Ex* m_d3d;
 };

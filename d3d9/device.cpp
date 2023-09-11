@@ -81,12 +81,48 @@ BOOL __stdcall d3d9_device_proxy::ShowCursor(BOOL bShow)
 
 HRESULT __stdcall d3d9_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DSwapChain9** pSwapChain)
 {
-	return m_device->CreateAdditionalSwapChain(pPresentationParameters, pSwapChain);
+	log("device: created additional swapchain %i\n", m_swapchains.size());
+
+	IDirect3DSwapChain9* swapchain;
+	auto hr = m_device->CreateAdditionalSwapChain(pPresentationParameters, &swapchain);
+
+	if (SUCCEEDED(hr))
+	{
+		auto proxy = new d3d9ex_swapchain_proxy(swapchain);
+
+		m_swapchains.emplace(swapchain, proxy);
+		*pSwapChain = reinterpret_cast<IDirect3DSwapChain9*>(proxy);
+	}
+
+	return hr;
 }
 
 HRESULT __stdcall d3d9_device_proxy::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9** pSwapChain)
 {
-	return m_device->GetSwapChain(iSwapChain, pSwapChain);
+	log("device: get swapchain %i\n", iSwapChain);
+
+	IDirect3DSwapChain9* swapchain;
+	auto hr = m_device->GetSwapChain(iSwapChain, &swapchain);
+
+	if (SUCCEEDED(hr))
+	{
+		auto pair = m_swapchains.find(swapchain);
+		d3d9ex_swapchain_proxy* proxy = nullptr;
+
+		if (pair != m_swapchains.end())
+		{
+			proxy = pair->second;
+		}
+		else
+		{
+			proxy = new d3d9ex_swapchain_proxy(swapchain);
+			m_swapchains.emplace(swapchain, proxy);
+		}
+
+		*pSwapChain = reinterpret_cast<IDirect3DSwapChain9*>(proxy);
+	}
+
+	return hr;
 }
 
 UINT __stdcall d3d9_device_proxy::GetNumberOfSwapChains(void)

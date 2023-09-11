@@ -1,21 +1,50 @@
 #include <stdinc.hpp>
 
+config_t config;
+
 namespace
 {
-	IDirect3D9* (WINAPI* create_d3d9_orig)(UINT);
-	HRESULT(WINAPI* create_d3d9ex_orig)(UINT, IDirect3D9Ex**);
-	
+	void* create_d3d9ex_orig;
+	void* enum_display_settings_orig;
+
+	#define AS(type, pointer) (reinterpret_cast<decltype(type)*>(pointer))
 
 	FILE* logfile = nullptr;
+	double frametime_target;
+
+	double msec()
+	{
+		LARGE_INTEGER now, freq;
+		QueryPerformanceFrequency(&freq);
+		QueryPerformanceCounter(&now);
+
+		return now.QuadPart / static_cast<double>(freq.QuadPart) * 1000.f;
+	}
+
+	BOOL WINAPI enum_display_settings_hook(LPCSTR lpszDeviceName, DWORD iModeNum, DEVMODEA* lpDevMode)
+	{
+		if (iModeNum >= config.mode_count)
+			return false;
+
+		auto mode = &config.modes[iModeNum];
+		
+		lpDevMode->dmPelsWidth = mode->Width;
+		lpDevMode->dmPelsHeight = mode->Height;
+		lpDevMode->dmDisplayFrequency = mode->RefreshRate;
+		lpDevMode->dmBitsPerPel = 32;
+		lpDevMode->dmDisplayFlags = 0;
+
+		return true;
+	}
 }
 
-extern "C" 
+extern "C"
 {
 	HRESULT WINAPI create_d3d9ex(UINT SDKVersion, IDirect3D9Ex** ppD3D9Ex)
 	{
 		IDirect3D9Ex* d3d9ex = nullptr;
 
-		auto hr = create_d3d9ex_orig(SDKVersion, &d3d9ex);
+		auto hr = AS(Direct3DCreate9Ex, create_d3d9ex_orig)(SDKVersion, &d3d9ex);
 
 		if (SUCCEEDED(hr))
 		{
@@ -52,18 +81,9 @@ void log(const char* format, ...)
 	fflush(logfile);
 }
 
-double msec()
+void do_fps_limit(double* last)
 {
-	LARGE_INTEGER now, freq;
-	QueryPerformanceFrequency(&freq);
-	QueryPerformanceCounter(&now);
-
-	return now.QuadPart / static_cast<double>(freq.QuadPart) * 1000.f;
-}
-
-void do_fps_limit(double *last)
-{
-	const auto frametime_max = *last + FRAMETIME_TARGET;
+	const auto frametime_max = *last + frametime_target;
 
 	while (msec() < frametime_max)
 	{
@@ -81,15 +101,55 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 	if (ul_reason_for_call != DLL_PROCESS_ATTACH)
 		return TRUE;
 
-	logfile = fopen("d3d9_proxy.log", "w");
+	CHAR tmp[MAX_PATH];
 
-	CHAR mPath[MAX_PATH];
+	config.enable_logger = GetPrivateProfileIntA("config", "enable_log", 1, "./d3d9_proxy.ini");
+	config.target_fps = GetPrivateProfileIntA("config", "target_fps", 120, "./d3d9_proxy.ini");
 
-	GetSystemDirectoryA(mPath, MAX_PATH);
-	strcat(mPath, "\\");
-	strcat(mPath, "d3d9.dll");
+	auto int_bias = GetPrivateProfileIntA("config", "bias", 50, "./d3d9_proxy.ini");
+	config.bias = int_bias / 10000.f;
 
-	HMODULE mod = LoadLibraryA(mPath);
+	frametime_target = 1000. / (config.target_fps + config.bias);
+
+	config.mode_count = GetPrivateProfileIntA("modes", "count", 0, "./d3d9_proxy.ini");
+	config.modes = new D3DDISPLAYMODE[config.mode_count];
+
+	if (config.enable_logger)
+	{
+		logfile = fopen("d3d9_proxy.log", "w");
+	}
+
+	for (auto i = 0u; i < config.mode_count; i++)
+	{
+		sprintf(tmp, "mode%d", i + 1);
+		GetPrivateProfileStringA("modes", tmp, "1920x1080@120", tmp, MAX_PATH, "./d3d9_proxy.ini");
+
+		int width, height, hz;
+		if (sscanf(tmp, "%dx%d@%d", &width, &height, &hz) != 3)
+		{
+			log("d3d9 proxy: invalied display mode format for mode %d (%s).\n", i, tmp);
+
+			return FALSE;
+		}
+
+		config.modes[i].Width = width;
+		config.modes[i].Height = height;
+		config.modes[i].RefreshRate = hz;
+		config.modes[i].Format = D3DFMT_X8R8G8B8;
+
+		log("mode %d: width=%d height=%d hz=%d\n", i, width, height, hz);
+	}
+
+	if (!config.mode_count)
+	{
+		log("d3d9 proxy: mode count is 0, monitor mode spoofing is disabled.\n");
+	}
+
+	GetSystemDirectoryA(tmp, MAX_PATH);
+	strcat(tmp, "\\");
+	strcat(tmp, "d3d9.dll");
+
+	HMODULE mod = LoadLibraryA(tmp);
 
 	if (mod == nullptr)
 	{
@@ -97,14 +157,17 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 		return FALSE;
 	}
 
-	create_d3d9_orig = reinterpret_cast<decltype(Direct3DCreate9)*>(GetProcAddress(mod, "Direct3DCreate9"));
 	create_d3d9ex_orig = reinterpret_cast<decltype(Direct3DCreate9Ex)*>(GetProcAddress(mod, "Direct3DCreate9Ex"));
 
-	HMODULE nt_dll = LoadLibraryA("ntdll.dll");
-
-	if (nt_dll == nullptr)
+	if (!create_d3d9ex_orig)
 	{
-		log("d3d9 proxy: failed to load ntdll.\n");
+		log("d3d9 proxy: failed to load original d3d9 functions.\n");
+		return FALSE;
+	}
+
+	if (MH_Initialize())
+	{
+		log("d3d9 proxy: failed to initialize minhook.\n");
 		return FALSE;
 	}
 

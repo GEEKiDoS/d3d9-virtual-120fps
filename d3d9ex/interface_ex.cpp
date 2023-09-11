@@ -44,24 +44,27 @@ HRESULT __stdcall d3d9ex_proxy::GetAdapterIdentifier(UINT Adapter, DWORD Flags, 
 	return m_d3d->GetAdapterIdentifier(Adapter, Flags, pIdentifier);
 }
 
-D3DDISPLAYMODE preset_display_modes[]
-{
-	{ 1920, 1080, 120, D3DFMT_X8R8G8B8 },
-	{ 1280, 720, 60, D3DFMT_X8R8G8B8 },
-};
-
 UINT __stdcall d3d9ex_proxy::GetAdapterModeCount(UINT Adapter, D3DFORMAT Format)
 { 
-	return 2;
-	//return m_d3d->GetAdapterModeCount(Adapter, Format);
+	if (config.mode_count) 
+		return config.mode_count;
+
+	return m_d3d->GetAdapterModeCount(Adapter, Format);
 }
 
 HRESULT __stdcall d3d9ex_proxy::EnumAdapterModes(UINT Adapter, D3DFORMAT Format, UINT Mode, D3DDISPLAYMODE* pMode)
 {
-	*pMode = preset_display_modes[Mode];
+	if (config.mode_count)
+	{
+		if (Mode >= config.mode_count) 
+			return D3DERR_INVALIDCALL;
 
-	return S_OK;
-	//return m_d3d->EnumAdapterModes(Adapter, Format, Mode, pMode);
+		*pMode = config.modes[Mode];
+
+		return D3D_OK;
+	}
+
+	return m_d3d->EnumAdapterModes(Adapter, Format, Mode, pMode);
 }
 
 HRESULT __stdcall d3d9ex_proxy::GetAdapterDisplayMode(UINT Adapter, D3DDISPLAYMODE* pMode)
@@ -104,11 +107,63 @@ HMONITOR __stdcall d3d9ex_proxy::GetAdapterMonitor(UINT Adapter)
 	return m_d3d->GetAdapterMonitor(Adapter);
 }
 
+HRESULT d3d9ex_proxy::modify_present_params(UINT Adapter, D3DPRESENT_PARAMETERS* pPresentationParameters, D3DDISPLAYMODEEX* pFullscreenDisplayMode)
+{
+	if (!pPresentationParameters->Windowed)
+	{
+		log("running in fullscreen\n");
+
+		const auto width = GetSystemMetrics(SM_CXSCREEN);
+		const auto height = GetSystemMetrics(SM_CYSCREEN);
+
+		DEVMODEA devmode;
+		int refresh_rate = 0;
+
+		for (auto i = 0; i < 1000; ++i)
+		{
+			if (!EnumDisplaySettingsA(0, i, &devmode))
+				break;
+
+			if ((devmode.dmPelsWidth == width && devmode.dmPelsHeight == height) && (devmode.dmDisplayFrequency > refresh_rate))
+			{
+				refresh_rate = devmode.dmDisplayFrequency;
+			}
+		}
+
+		if (!refresh_rate)
+		{
+			log("no matching refresh rate\n");
+			return D3DERR_INVALIDCALL;
+		}
+
+		pPresentationParameters->BackBufferWidth = width;
+		pPresentationParameters->BackBufferHeight = height;
+		pPresentationParameters->FullScreen_RefreshRateInHz = refresh_rate;
+
+		if (pFullscreenDisplayMode)
+		{
+			pFullscreenDisplayMode->Width = width;
+			pFullscreenDisplayMode->Height = height;
+			pFullscreenDisplayMode->RefreshRate = refresh_rate;
+		}
+
+		log("auto fullscreen mode: width=%d, height=%d, refresh_rate=%d\n", width, height, refresh_rate);
+	}
+
+	pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+	return D3D_OK;
+}
+
 HRESULT __stdcall d3d9ex_proxy::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice9** ppReturnedDeviceInterface)
 {
 	IDirect3DDevice9* device = nullptr;
 
-	auto hr = m_d3d->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &device);
+	auto hr = modify_present_params(Adapter, pPresentationParameters, nullptr);
+	if (!SUCCEEDED(hr)) return hr;
+
+	hr = m_d3d->CreateDevice(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, &device);
+	if (!SUCCEEDED(hr)) return hr;
+
 	*ppReturnedDeviceInterface = new d3d9_device_proxy(device);
 
 	log("interface ex: created device\n");
@@ -135,46 +190,12 @@ HRESULT __stdcall d3d9ex_proxy::CreateDeviceEx(UINT Adapter, D3DDEVTYPE DeviceTy
 {
 	IDirect3DDevice9Ex* device = nullptr;
 
-	if (pFullscreenDisplayMode)
-	{
-		log("fullscreen\n");
+	auto hr = modify_present_params(Adapter, pPresentationParameters, pFullscreenDisplayMode);
+	if (!SUCCEEDED(hr)) return hr;
 
-		const auto width = GetSystemMetrics(SM_CXSCREEN);
-		const auto height = GetSystemMetrics(SM_CYSCREEN);
+	hr = m_d3d->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, &device);
+	if (!SUCCEEDED(hr)) return hr;
 
-		const auto mode_count = m_d3d->GetAdapterModeCount(Adapter, D3DFMT_X8R8G8B8);
-		D3DDISPLAYMODE preferred;
-		preferred.RefreshRate = 0;
-
-		for (int i = 0; i < mode_count; i++)
-		{
-			D3DDISPLAYMODE mode;
-
-			m_d3d->EnumAdapterModes(Adapter, D3DFMT_X8R8G8B8, i, &mode);
-
-			if ((mode.Width == width && mode.Height == height) && (mode.RefreshRate > preferred.RefreshRate))
-			{
-				memcpy(&preferred, &mode, sizeof(D3DDISPLAYMODE));
-			}
-		}
-		
-		if (!preferred.RefreshRate)
-		{
-			log("no matching refresh rate\n");
-			return D3DERR_INVALIDCALL;
-		}
-
-		pPresentationParameters->BackBufferWidth = preferred.Width;
-		pPresentationParameters->BackBufferHeight = preferred.Height;
-		pPresentationParameters->FullScreen_RefreshRateInHz = preferred.RefreshRate;
-		pFullscreenDisplayMode->Width = preferred.Width;
-		pFullscreenDisplayMode->Height = preferred.Height;
-		pFullscreenDisplayMode->RefreshRate = preferred.RefreshRate;
-	}
-
-	pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-
-	auto hr = m_d3d->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, &device);
 	*ppReturnedDeviceInterface = new d3d9ex_device_proxy(device);
 
 	log("interface ex: created device ex\n");

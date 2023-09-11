@@ -11,11 +11,21 @@
 
 #include <unordered_map>
 
-#include "d3d9/interface.hpp"
+#include "MinHook.h"
+
 #include "d3d9ex/interface_ex.hpp"
+#include "d3d9/interface.hpp"
 
 void log(const char* format, ...);
-
-const auto TARGET_FPS = 120;
-constexpr auto FRAMETIME_TARGET = 1000. / (TARGET_FPS + 0.005);
 void do_fps_limit(double* last);
+
+struct config_t {
+	bool enable_logger;
+	int target_fps;
+	float bias;
+
+	UINT mode_count;
+	D3DDISPLAYMODE* modes;
+};
+
+extern config_t config;
