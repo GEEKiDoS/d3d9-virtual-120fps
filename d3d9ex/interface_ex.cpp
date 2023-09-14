@@ -117,7 +117,7 @@ HRESULT d3d9ex_proxy::modify_present_params(UINT Adapter, D3DPRESENT_PARAMETERS*
 		const auto height = GetSystemMetrics(SM_CYSCREEN);
 
 		DEVMODEA devmode;
-		int refresh_rate = 0;
+		uint32_t refresh_rate = 0;
 
 		for (auto i = 0; i < 1000; ++i)
 		{

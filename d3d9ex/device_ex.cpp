@@ -3,6 +3,10 @@
 d3d9ex_device_proxy::d3d9ex_device_proxy(IDirect3DDevice9Ex* orig)
 {
 	m_device = orig;
+
+	d3d11_renderer = new renderer(1920, 1080);
+	d3d11_renderer->init();
+	d3d11_renderer->start();
 }
 
 HRESULT __stdcall d3d9ex_device_proxy::QueryInterface(REFIID riid, void** ppvObj)
@@ -24,7 +28,11 @@ ULONG __stdcall d3d9ex_device_proxy::Release(void)
 {
 	auto count = m_device->Release();
 
-	if (!count) delete this;
+	if (!count) 
+	{
+		delete d3d11_renderer;
+		delete this;
+	}
 
 	return count;
 }

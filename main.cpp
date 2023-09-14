@@ -103,6 +103,9 @@ void do_fps_limit(double* last)
 	*last = msec();
 }
 
+HMODULE g_instance;
+renderer *g_renderer;
+
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
 	LPVOID lpReserved
@@ -110,6 +113,8 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 {
 	if (ul_reason_for_call != DLL_PROCESS_ATTACH)
 		return TRUE;
+
+	g_instance = hModule;
 
 	CHAR tmp[MAX_PATH];
 
@@ -131,7 +136,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 	for (auto i = 0u; i < config.mode_count; i++)
 	{
-		sprintf(tmp, "mode%d", i);
+		sprintf(tmp, "mode%d", i + 1);
 		GetPrivateProfileStringA("modes", tmp, "1920x1080@120", tmp, MAX_PATH, "./d3d9_proxy.ini");
 
 		int width, height, hz;
