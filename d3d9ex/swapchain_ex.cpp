@@ -1,8 +1,9 @@
 #include "stdinc.hpp"
 
-d3d9ex_swapchain_proxy::d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig)
+d3d9ex_swapchain_proxy::d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig, renderer *renderer)
 {
 	this->m_swapchain = reinterpret_cast<IDirect3DSwapChain9Ex*>(orig);
+	d3d11_renderer = renderer;
 }
 
 HRESULT __stdcall d3d9ex_swapchain_proxy::QueryInterface(REFIID riid, void** ppvObj)
@@ -33,7 +34,14 @@ HRESULT __stdcall d3d9ex_swapchain_proxy::Present(const RECT* pSourceRect, const
 {
 	do_fps_limit(&m_lastTime);
 
-	return m_swapchain->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	auto hr = m_swapchain->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+
+	if (pSourceRect->right - pSourceRect->left == 1920)
+	{
+		d3d11_renderer->queue_frame();
+	}
+
+	return hr;
 }
 
 HRESULT __stdcall d3d9ex_swapchain_proxy::GetFrontBufferData(IDirect3DSurface9* pDestSurface)

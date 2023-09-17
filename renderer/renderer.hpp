@@ -7,7 +7,7 @@ public:
 	void init();
 	void start();
 	void create_surface_queue(IDirect3DDevice9Ex* d3d9_device);
-	void queue();
+	void queue_frame();
 
 private:
 	void create_window();
@@ -31,8 +31,14 @@ private:
 
 	std::array<float, 2> screen_size;
 
-	IDirect3DDevice9Ex* d3d9_device;
-	ISurfaceQueue* queue_9to11;
-	ISurfaceProducer* surface_producer;
-	ISurfaceConsumer* surface_consumer;
+	IDirect3DDevice9Ex* d3d9_device = nullptr;
+	ISurfaceQueue* queue_9to11 = nullptr;
+	ISurfaceProducer* surface_producer = nullptr;
+	ISurfaceConsumer* surface_consumer = nullptr;
+	size_t pending_surfaces = 0;
+
+	ID3D11SamplerState* sampler_state = nullptr;
+
+	CRITICAL_SECTION queue_lock;
+	IDirect3DSurface9* copy_surface = nullptr;
 };

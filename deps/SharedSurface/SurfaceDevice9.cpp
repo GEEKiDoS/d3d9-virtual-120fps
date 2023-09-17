@@ -183,7 +183,7 @@ HRESULT CSurfaceQueueDeviceD3D9::CopySurface(IUnknown* pDst, IUnknown* pSrc, UIN
     IDirect3DSurface9*  pSrcSurf    = NULL;
     IDirect3DSurface9*  pDstSurf    = NULL;
     IDirect3DTexture9*  pSrcTex     = NULL;
-    RECT                rect        = {0, 0, width, height };
+    RECT                rect        = {0, 0, (LONG) width, (LONG) height };
    
     // The source should be a IDirect3DTexture9.  We need to QI for it and then get the
     // top most surface from it.

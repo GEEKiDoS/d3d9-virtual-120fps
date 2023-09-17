@@ -6,6 +6,7 @@ d3d9ex_device_proxy::d3d9ex_device_proxy(IDirect3DDevice9Ex* orig)
 
 	d3d11_renderer = new renderer(1920, 1080);
 	d3d11_renderer->init();
+	d3d11_renderer->create_surface_queue(orig);
 	d3d11_renderer->start();
 }
 
@@ -96,7 +97,7 @@ HRESULT __stdcall d3d9ex_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARA
 
 	if (SUCCEEDED(hr))
 	{
-		auto proxy = new d3d9ex_swapchain_proxy(swapchain);
+		auto proxy = new d3d9ex_swapchain_proxy(swapchain, d3d11_renderer);
 
 		m_swapchains.emplace(swapchain, proxy);
 		*pSwapChain = reinterpret_cast<IDirect3DSwapChain9*>(proxy);
@@ -123,7 +124,7 @@ HRESULT __stdcall d3d9ex_device_proxy::GetSwapChain(UINT iSwapChain, IDirect3DSw
 		}
 		else
 		{
-			proxy = new d3d9ex_swapchain_proxy(swapchain);
+			proxy = new d3d9ex_swapchain_proxy(swapchain, d3d11_renderer);
 			m_swapchains.emplace(swapchain, proxy);
 		}
 
@@ -147,7 +148,9 @@ HRESULT __stdcall d3d9ex_device_proxy::Present(const RECT* pSourceRect, const RE
 {
 	do_fps_limit(&m_lastTime);
 
-	return m_device->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	auto hr = m_device->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	d3d11_renderer->queue_frame();
+	return hr;
 }
 
 HRESULT __stdcall d3d9ex_device_proxy::GetBackBuffer(UINT iSwapChain, UINT iBackBuffer, D3DBACKBUFFER_TYPE Type, IDirect3DSurface9** ppBackBuffer)
@@ -669,7 +672,9 @@ HRESULT __stdcall d3d9ex_device_proxy::PresentEx(const RECT* pSourceRect, const 
 {
 	do_fps_limit(&m_lastTime);
 
-	return m_device->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	auto hr = m_device->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	d3d11_renderer->queue_frame();
+	return hr;
 }
 
 HRESULT __stdcall d3d9ex_device_proxy::GetGPUThreadPriority(INT* pPriority)

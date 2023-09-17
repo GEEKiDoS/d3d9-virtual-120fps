@@ -88,7 +88,8 @@ HRESULT __stdcall d3d9_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARAME
 
 	if (SUCCEEDED(hr))
 	{
-		auto proxy = new d3d9ex_swapchain_proxy(swapchain);
+		// TODO
+		auto proxy = new d3d9ex_swapchain_proxy(swapchain, nullptr);
 
 		m_swapchains.emplace(swapchain, proxy);
 		*pSwapChain = reinterpret_cast<IDirect3DSwapChain9*>(proxy);
@@ -115,7 +116,8 @@ HRESULT __stdcall d3d9_device_proxy::GetSwapChain(UINT iSwapChain, IDirect3DSwap
 		}
 		else
 		{
-			proxy = new d3d9ex_swapchain_proxy(swapchain);
+			// TODO
+			proxy = new d3d9ex_swapchain_proxy(swapchain, nullptr);
 			m_swapchains.emplace(swapchain, proxy);
 		}
 

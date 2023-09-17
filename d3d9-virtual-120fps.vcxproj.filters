@@ -19,6 +19,9 @@
     <Filter Include="renderer">
       <UniqueIdentifier>{f2187ba1-5a66-4255-9c39-4fd0355c3a3f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="deps\sharedsurface">
+      <UniqueIdentifier>{fa7e1cba-09b0-4a4a-9578-b63c250327cf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="d3d9ex\interface_ex.cpp">
@@ -54,6 +57,18 @@
     </ClCompile>
     <ClCompile Include="renderer\renderer.cpp">
       <Filter>renderer</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\SharedSurface\SurfaceDevice10.cpp">
+      <Filter>deps\sharedsurface</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\SharedSurface\SurfaceDevice11.cpp">
+      <Filter>deps\sharedsurface</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\SharedSurface\SurfaceDevice9.cpp">
+      <Filter>deps\sharedsurface</Filter>
+    </ClCompile>
+    <ClCompile Include="deps\SharedSurface\SurfaceQueue.cpp">
+      <Filter>deps\sharedsurface</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -97,8 +112,17 @@
     <ClInclude Include="renderer\renderer.hpp">
       <Filter>renderer</Filter>
     </ClInclude>
+    <ClInclude Include="deps\SharedSurface\SurfaceQueue.h">
+      <Filter>deps\sharedsurface</Filter>
+    </ClInclude>
+    <ClInclude Include="deps\SharedSurface\SurfaceQueueImpl.h">
+      <Filter>deps\sharedsurface</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def" />
+    <None Include="deps\SharedSurface\SurfaceQueue.inl">
+      <Filter>deps\sharedsurface</Filter>
+    </None>
   </ItemGroup>
 </Project>

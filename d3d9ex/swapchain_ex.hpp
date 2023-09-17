@@ -3,7 +3,7 @@
 class d3d9ex_swapchain_proxy : IDirect3DSwapChain9Ex
 {
 public:
-	d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig);
+	d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig, renderer* renderer);
 
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObj) override;
 	virtual ULONG __stdcall AddRef(void) override;
@@ -22,4 +22,5 @@ public:
 private:
 	IDirect3DSwapChain9Ex* m_swapchain;
 	double m_lastTime;
+	renderer *d3d11_renderer;
 };
