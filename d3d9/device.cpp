@@ -88,7 +88,9 @@ HRESULT __stdcall d3d9_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARAME
 
 	if (SUCCEEDED(hr))
 	{
-		auto proxy = new d3d9ex_swapchain_proxy(swapchain);
+		// TODO
+		auto index = m_device->GetNumberOfSwapChains();
+		auto proxy = new d3d9ex_swapchain_proxy(swapchain, nullptr, index);
 
 		m_swapchains.emplace(swapchain, proxy);
 		*pSwapChain = reinterpret_cast<IDirect3DSwapChain9*>(proxy);
@@ -115,7 +117,8 @@ HRESULT __stdcall d3d9_device_proxy::GetSwapChain(UINT iSwapChain, IDirect3DSwap
 		}
 		else
 		{
-			proxy = new d3d9ex_swapchain_proxy(swapchain);
+			// TODO
+			proxy = new d3d9ex_swapchain_proxy(swapchain, nullptr, iSwapChain);
 			m_swapchains.emplace(swapchain, proxy);
 		}
 
@@ -167,28 +170,44 @@ void __stdcall d3d9_device_proxy::GetGammaRamp(UINT iSwapChain, D3DGAMMARAMP* pR
 	return m_device->GetGammaRamp(iSwapChain, pRamp);
 }
 
+// https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dpool#d3dpool_managed
+// D3DPOOL_MANAGED is valid with IDirect3DDevice9; however, it is not valid with IDirect3DDevice9Ex.
+void transform_pool_and_usage(DWORD& usage, D3DPOOL& pool)
+{
+	if (pool == D3DPOOL_MANAGED) 
+	{
+		pool = D3DPOOL_DEFAULT; 
+		usage |= D3DUSAGE_DYNAMIC; 
+	}
+}
+
 HRESULT __stdcall d3d9_device_proxy::CreateTexture(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture9** ppTexture, HANDLE* pSharedHandle)
 {
+	transform_pool_and_usage(Usage, Pool);
 	return m_device->CreateTexture(Width, Height, Levels, Usage, Format, Pool, ppTexture, pSharedHandle);
 }
 
 HRESULT __stdcall d3d9_device_proxy::CreateVolumeTexture(UINT Width, UINT Height, UINT Depth, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DVolumeTexture9** ppVolumeTexture, HANDLE* pSharedHandle)
 {
+	transform_pool_and_usage(Usage, Pool);
 	return m_device->CreateVolumeTexture(Width, Height, Depth, Levels, Usage, Format, Pool, ppVolumeTexture, pSharedHandle);
 }
 
 HRESULT __stdcall d3d9_device_proxy::CreateCubeTexture(UINT EdgeLength, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DCubeTexture9** ppCubeTexture, HANDLE* pSharedHandle)
 {
+	transform_pool_and_usage(Usage, Pool);
 	return m_device->CreateCubeTexture(EdgeLength, Levels, Usage, Format, Pool, ppCubeTexture, pSharedHandle);
 }
 
 HRESULT __stdcall d3d9_device_proxy::CreateVertexBuffer(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer9** ppVertexBuffer, HANDLE* pSharedHandle)
 {
+	transform_pool_and_usage(Usage, Pool);
 	return m_device->CreateVertexBuffer(Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
 }
 
 HRESULT __stdcall d3d9_device_proxy::CreateIndexBuffer(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer9** ppIndexBuffer, HANDLE* pSharedHandle)
 {
+	transform_pool_and_usage(Usage, Pool);
 	return m_device->CreateIndexBuffer(Length, Usage, Format, Pool, ppIndexBuffer, pSharedHandle);
 }
 
@@ -234,6 +253,8 @@ HRESULT __stdcall d3d9_device_proxy::ColorFill(IDirect3DSurface9* pSurface, cons
 
 HRESULT __stdcall d3d9_device_proxy::CreateOffscreenPlainSurface(UINT Width, UINT Height, D3DFORMAT Format, D3DPOOL Pool, IDirect3DSurface9** ppSurface, HANDLE* pSharedHandle)
 {
+	DWORD usage;
+	transform_pool_and_usage(usage, Pool);
 	return m_device->CreateOffscreenPlainSurface(Width, Height, Format, Pool, ppSurface, pSharedHandle);
 }
 

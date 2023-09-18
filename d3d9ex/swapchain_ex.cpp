@@ -1,8 +1,10 @@
 #include "stdinc.hpp"
 
-d3d9ex_swapchain_proxy::d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig)
+d3d9ex_swapchain_proxy::d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig, renderer *renderer, UINT index)
 {
 	this->m_swapchain = reinterpret_cast<IDirect3DSwapChain9Ex*>(orig);
+	this->monitor_renderer = renderer;
+	this->swapchain_index = index;
 }
 
 HRESULT __stdcall d3d9ex_swapchain_proxy::QueryInterface(REFIID riid, void** ppvObj)
@@ -31,9 +33,16 @@ ULONG __stdcall d3d9ex_swapchain_proxy::Release(void)
 
 HRESULT __stdcall d3d9ex_swapchain_proxy::Present(const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion, DWORD dwFlags)
 {
-	do_fps_limit(&m_lastTime);
+	auto hr = m_swapchain->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
 
-	return m_swapchain->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+	if (GetIndex() == 0)
+	{
+		monitor_renderer->queue_frame();
+	}
+	
+	// do_fps_limit(&m_lastTime);
+
+	return hr;
 }
 
 HRESULT __stdcall d3d9ex_swapchain_proxy::GetFrontBufferData(IDirect3DSurface9* pDestSurface)

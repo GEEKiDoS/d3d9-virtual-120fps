@@ -3,7 +3,7 @@
 class d3d9ex_swapchain_proxy : IDirect3DSwapChain9Ex
 {
 public:
-	d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig);
+	d3d9ex_swapchain_proxy(IDirect3DSwapChain9* orig, renderer* renderer, UINT index);
 
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObj) override;
 	virtual ULONG __stdcall AddRef(void) override;
@@ -18,8 +18,13 @@ public:
 	virtual HRESULT __stdcall GetLastPresentCount(UINT* pLastPresentCount) override;
 	virtual HRESULT __stdcall GetPresentStats(D3DPRESENTSTATS* pPresentationStatistics) override;
 	virtual HRESULT __stdcall GetDisplayModeEx(D3DDISPLAYMODEEX* pMode, D3DDISPLAYROTATION* pRotation) override;
+
+	inline UINT GetIndex() { return swapchain_index; };
 	
 private:
 	IDirect3DSwapChain9Ex* m_swapchain;
 	double m_lastTime;
+	renderer *monitor_renderer;
+
+	UINT swapchain_index;
 };

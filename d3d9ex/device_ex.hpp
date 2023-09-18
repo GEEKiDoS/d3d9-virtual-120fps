@@ -9,6 +9,8 @@ private:
 
 	std::unordered_map<IDirect3DSwapChain9*, d3d9ex_swapchain_proxy*> m_swapchains;
 
+	renderer *monitor_renderer;
+
 public:
 	virtual HRESULT __stdcall QueryInterface(REFIID riid, void** ppvObj) override;
 	virtual ULONG __stdcall AddRef(void) override;

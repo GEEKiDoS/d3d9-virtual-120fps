@@ -117,7 +117,7 @@ HRESULT d3d9ex_proxy::modify_present_params(UINT Adapter, D3DPRESENT_PARAMETERS*
 		const auto height = GetSystemMetrics(SM_CYSCREEN);
 
 		DEVMODEA devmode;
-		int refresh_rate = 0;
+		uint32_t refresh_rate = 0;
 
 		for (auto i = 0; i < 1000; ++i)
 		{
@@ -190,10 +190,14 @@ HRESULT __stdcall d3d9ex_proxy::CreateDeviceEx(UINT Adapter, D3DDEVTYPE DeviceTy
 {
 	IDirect3DDevice9Ex* device = nullptr;
 
-	auto hr = modify_present_params(Adapter, pPresentationParameters, pFullscreenDisplayMode);
-	if (!SUCCEEDED(hr)) return hr;
+	// auto hr = modify_present_params(Adapter, pPresentationParameters, pFullscreenDisplayMode);
+	// if (!SUCCEEDED(hr)) return hr;
 
-	hr = m_d3d->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, pFullscreenDisplayMode, &device);
+	pPresentationParameters->Windowed = true;
+	pPresentationParameters->FullScreen_RefreshRateInHz = 0;
+	pPresentationParameters->PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
+
+	auto hr = m_d3d->CreateDeviceEx(Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, nullptr, &device);
 	if (!SUCCEEDED(hr)) return hr;
 
 	*ppReturnedDeviceInterface = new d3d9ex_device_proxy(device);
