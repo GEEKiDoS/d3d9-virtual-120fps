@@ -3,11 +3,6 @@
 d3d9ex_device_proxy::d3d9ex_device_proxy(IDirect3DDevice9Ex* orig)
 {
 	m_device = orig;
-
-	d3d11_renderer = new renderer(1920, 1080);
-	d3d11_renderer->init();
-	d3d11_renderer->create_surface_queue(orig);
-	d3d11_renderer->start();
 }
 
 HRESULT __stdcall d3d9ex_device_proxy::QueryInterface(REFIID riid, void** ppvObj)
@@ -31,7 +26,7 @@ ULONG __stdcall d3d9ex_device_proxy::Release(void)
 
 	if (!count) 
 	{
-		delete d3d11_renderer;
+		delete monitor_renderer;
 		delete this;
 	}
 
@@ -85,19 +80,23 @@ void __stdcall d3d9ex_device_proxy::SetCursorPosition(int X, int Y, DWORD Flags)
 
 BOOL __stdcall d3d9ex_device_proxy::ShowCursor(BOOL bShow)
 {
-	return m_device->ShowCursor(bShow);
+	return m_device->ShowCursor(true);
 }
 
 HRESULT __stdcall d3d9ex_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DSwapChain9** pSwapChain)
 {
-	log("device ex: created additional swapchain %i\n", m_swapchains.size());
+	auto index = m_device->GetNumberOfSwapChains();
+	log("device ex: created additional swapchain %i\n", index);
 
 	IDirect3DSwapChain9* swapchain;
 	auto hr = m_device->CreateAdditionalSwapChain(pPresentationParameters, &swapchain);
 
+	monitor_renderer = new renderer(3840, 2160);
+	monitor_renderer->init(m_device);
+
 	if (SUCCEEDED(hr))
 	{
-		auto proxy = new d3d9ex_swapchain_proxy(swapchain, d3d11_renderer);
+		auto proxy = new d3d9ex_swapchain_proxy(swapchain, monitor_renderer, index);
 
 		m_swapchains.emplace(swapchain, proxy);
 		*pSwapChain = reinterpret_cast<IDirect3DSwapChain9*>(proxy);
@@ -124,7 +123,7 @@ HRESULT __stdcall d3d9ex_device_proxy::GetSwapChain(UINT iSwapChain, IDirect3DSw
 		}
 		else
 		{
-			proxy = new d3d9ex_swapchain_proxy(swapchain, d3d11_renderer);
+			proxy = new d3d9ex_swapchain_proxy(swapchain, monitor_renderer, iSwapChain);
 			m_swapchains.emplace(swapchain, proxy);
 		}
 
@@ -146,10 +145,11 @@ HRESULT __stdcall d3d9ex_device_proxy::Reset(D3DPRESENT_PARAMETERS* pPresentatio
 
 HRESULT __stdcall d3d9ex_device_proxy::Present(const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion)
 {
+	auto hr = m_device->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+	monitor_renderer->queue_frame();
+
 	do_fps_limit(&m_lastTime);
 
-	auto hr = m_device->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-	d3d11_renderer->queue_frame();
 	return hr;
 }
 
@@ -670,10 +670,11 @@ HRESULT __stdcall d3d9ex_device_proxy::ComposeRects(IDirect3DSurface9* pSrc, IDi
 
 HRESULT __stdcall d3d9ex_device_proxy::PresentEx(const RECT* pSourceRect, const RECT* pDestRect, HWND hDestWindowOverride, const RGNDATA* pDirtyRegion, DWORD dwFlags)
 {
+	auto hr = m_device->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
+
+	monitor_renderer->queue_frame();
 	do_fps_limit(&m_lastTime);
 
-	auto hr = m_device->PresentEx(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, dwFlags);
-	d3d11_renderer->queue_frame();
 	return hr;
 }
 

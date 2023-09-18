@@ -96,7 +96,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>QUEUE_USE_CONFORMANT_NEW;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\deps\minhook\src;$(ProjectDir)\deps\minhook\include;$(ProjectDir)\deps\SharedSurface</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\deps\minhook\src;$(ProjectDir)\deps\minhook\include;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -130,7 +130,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>QUEUE_USE_CONFORMANT_NEW;_CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\deps\minhook\src;$(ProjectDir)\deps\minhook\include;$(ProjectDir)\deps\SharedSurface</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)\deps\minhook\src;$(ProjectDir)\deps\minhook\include;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
@@ -170,15 +170,10 @@
     <ClCompile Include="deps\minhook\src\hde\hde64.c" />
     <ClCompile Include="deps\minhook\src\hook.c" />
     <ClCompile Include="deps\minhook\src\trampoline.c" />
-    <ClCompile Include="deps\SharedSurface\SurfaceDevice10.cpp" />
-    <ClCompile Include="deps\SharedSurface\SurfaceDevice11.cpp" />
-    <ClCompile Include="deps\SharedSurface\SurfaceDevice9.cpp" />
-    <ClCompile Include="deps\SharedSurface\SurfaceQueue.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="renderer\renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="deps\SharedSurface\SurfaceQueue.inl" />
     <None Include="exports.def" />
   </ItemGroup>
   <ItemGroup>
@@ -194,8 +189,6 @@
     <ClInclude Include="deps\minhook\src\hde\table32.h" />
     <ClInclude Include="deps\minhook\src\hde\table64.h" />
     <ClInclude Include="deps\minhook\src\trampoline.h" />
-    <ClInclude Include="deps\SharedSurface\SurfaceQueue.h" />
-    <ClInclude Include="deps\SharedSurface\SurfaceQueueImpl.h" />
     <ClInclude Include="renderer\renderer.hpp" />
     <ClInclude Include="stdinc.hpp" />
   </ItemGroup>

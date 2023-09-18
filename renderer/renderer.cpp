@@ -1,13 +1,24 @@
 #include "stdinc.hpp"
 
-struct VERTEX { float X, Y, Z; float Color[4]; };
+struct VERTEX { float x, y, z; };
+
+#define HR_ASSERT(msg) if(FAILED(hr)) \
+{ \
+	log("renderer assert: %s, hr=%x.\nfile=%s func=%s line=%d\n", msg, hr, __FILE__, __FUNCTION__, __LINE__); \
+	return; \
+}
+
+// #define HR_ASSERT(msg) 0
 
 VERTEX vertices[] =
 {
-	{-1.0f, 1.0f, 0.0f, { 1.0f, 0.0f, 0.0f, 1.0f }},
-	{3.0f, 1.0f, 0.0f, { 0.0f, 1.0f, 0.0f, 1.0f }},
-	{-1.0f, -3.0f, 0.0f, { 0.0f, 0.0f, 1.0f, 1.0f }},
+	{-1.0f, 1.0f, 0.0f},
+	{3.0f, 1.0f, 0.0f},
+	{-1.0f, -3.0f, 0.0f},
 };
+
+IDirect3DDevice9* renderer::device = nullptr;
+HWND renderer::window_handle = nullptr;
 
 renderer::renderer(float width, float height)
 {
@@ -17,103 +28,68 @@ renderer::renderer(float width, float height)
 
 renderer::~renderer()
 {
-	swapchain->SetFullscreenState(false, nullptr);
+	self_swapchain->Release();
 
-	SendMessage(window_handle, WM_CLOSE, 0, 0);
+	CloseWindow(window_handle);
 	CloseHandle(window_handle);
-
-	vs->Release();
-	ps->Release();
-	swapchain->Release();
-	queue_9to11->Release();
-	surface_consumer->Release();
-	surface_producer->Release();
-	backbuffer->Release();
-	device->Release();
-	device_ctx->Release();
 }
 
-void renderer::init()
+void renderer::init(IDirect3DDevice9* device)
 {
 	create_window();
 
-	UINT createDeviceFlags = D3D11_CREATE_DEVICE_DEBUG;
-	D3D_FEATURE_LEVEL featureLevels[] =
+	D3DPRESENT_PARAMETERS params;
+	ZeroMemory(&params, sizeof(D3DPRESENT_PARAMETERS));
+
+	params.BackBufferWidth = 0;
+	params.BackBufferHeight = 0;
+	params.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+	params.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
+	params.Windowed = true;
+
+	params.hDeviceWindow = window_handle;
+
+	params.BackBufferCount = 1;
+	params.BackBufferFormat = D3DFMT_X8R8G8B8;
+	params.SwapEffect = D3DSWAPEFFECT_COPY;
+
+	auto hr = device->CreateAdditionalSwapChain(&params, &self_swapchain);
+	HR_ASSERT("failed to create swapchain");
+
+	hr = device->CreateVertexBuffer(_countof(vertices) * sizeof(VERTEX), D3DUSAGE_DYNAMIC, D3DFVF_XYZ, D3DPOOL_DEFAULT, &vertex_buffer, nullptr);
+	HR_ASSERT("failed to create vertex buffer");
+
+	void* tmp_ptr;
+
+	hr = vertex_buffer->Lock(0, 0, &tmp_ptr, 0);
+	HR_ASSERT("failed to lock vertex buffer");
+
+	memcpy(tmp_ptr, vertices, _countof(vertices) * sizeof(VERTEX));
+
+	hr = vertex_buffer->Unlock();
+	HR_ASSERT("failed to unlock vertex buffer");
+
+	hr = device->GetSwapChain(0, &game_swapchain);
+	HR_ASSERT("failed to get game swapchain");
+
+	IDirect3DSurface9* backbuffer;
+	hr = game_swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &backbuffer);
+	HR_ASSERT("failed to get game backbuffer");
+
+	D3DSURFACE_DESC desc;
+	hr = backbuffer->GetDesc(&desc);
+	HR_ASSERT("failed to get game backbuffer desc");
+
+	for (size_t i = 0; i < frames.size(); i++)
 	{
-		D3D_FEATURE_LEVEL_11_0,
-		D3D_FEATURE_LEVEL_10_1,
-		D3D_FEATURE_LEVEL_10_0,
-		D3D_FEATURE_LEVEL_9_3,
-		D3D_FEATURE_LEVEL_9_2,
-		D3D_FEATURE_LEVEL_9_1,
-	};
-
-	D3D_FEATURE_LEVEL featureLevel;
-
-	DXGI_SWAP_CHAIN_DESC scd;
-	ZeroMemory(&scd, sizeof(DXGI_SWAP_CHAIN_DESC));
-
-	scd.BufferCount = 1;
-	scd.BufferDesc.Width = static_cast<UINT>(screen_size[0]);
-	scd.BufferDesc.Height = static_cast<UINT>(screen_size[1]);
-	scd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	scd.BufferDesc.RefreshRate.Numerator = 60;
-	scd.BufferDesc.RefreshRate.Denominator = 0;
-	scd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	scd.OutputWindow = window_handle;
-	scd.SampleDesc.Count = 1;
-	scd.SampleDesc.Quality = 0;
-	scd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-	scd.Windowed = TRUE;
-	scd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
-	auto hr = D3D11CreateDeviceAndSwapChain(
-		nullptr,
-		D3D_DRIVER_TYPE_HARDWARE,
-		nullptr, createDeviceFlags, featureLevels, _countof(featureLevels), D3D11_SDK_VERSION,
-		&scd, &swapchain, &device, &featureLevel, &device_ctx
-	);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to initialize d3d11, hr = %x\n", hr);
-		return;
+		hr = device->CreateTexture(desc.Width, desc.Height, 1, desc.Usage, desc.Format, desc.Pool, frames.data() + i, nullptr);
+		HR_ASSERT("failed to create frame cache");
 	}
 
-	ID3D11Texture2D* backbuffer_tex = nullptr;
-	hr = swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backbuffer_tex));
+	backbuffer->Release();
 
-	if (FAILED(hr) || !backbuffer_tex)
-	{
-		log("renderer: failed to get backbuffer texture\n");
-		return;
-	}
-
-	hr = device->CreateRenderTargetView(backbuffer_tex, nullptr, &backbuffer);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to create rt\n");
-		return;
-	}
-
-	backbuffer_tex->Release();
-
-	device_ctx->OMSetRenderTargets(1, &backbuffer, nullptr);
-
-	D3D11_VIEWPORT vp = {};
-	vp.TopLeftX = 0;
-	vp.TopLeftY = 0;
-	vp.Width = 1920;
-	vp.Height = 1080;
-
-	device_ctx->RSSetViewports(1, &vp);
-
-	log("renderer: inited with feature level %x\n", featureLevel);
-
-	ID3D10Blob* VS, * PS, * err;
-
-	hr = D3DCompileFromFile(L"./shaders/vs.hlsl", nullptr, nullptr, "vs_main", "vs_4_0", 0, 0, &VS, &err);
+	ID3DBlob* blob, * err;
+	hr = D3DCompileFromFile(L"./shaders/vs.hlsl", nullptr, nullptr, "main", "vs_3_0", 0, 0, &blob, &err);
 
 	if (err)
 	{
@@ -121,14 +97,15 @@ void renderer::init()
 		log("d3d compiler (vs): \n------------\n%s------------\n", error);
 	}
 
-	if (FAILED(hr))
-	{
-		log("renderer: failed to compile vertex shader.\n");
+	HR_ASSERT("failed to compile vertex shader");
 
-		return;
-	}
+	hr = device->CreateVertexShader(reinterpret_cast<const DWORD*>(blob->GetBufferPointer()), &vertex_shader);
+	HR_ASSERT("failed to create vertex shader");
 
-	hr = D3DCompileFromFile(L"./shaders/ps.hlsl", nullptr, nullptr, "ps_main", "ps_4_0", 0, 0, &PS, &err);
+	if (blob) blob->Release();
+	if (err) err->Release();
+
+	hr = D3DCompileFromFile(L"./shaders/ps.hlsl", nullptr, nullptr, "main", "ps_3_0", 0, 0, &blob, &err);
 
 	if (err)
 	{
@@ -136,124 +113,17 @@ void renderer::init()
 		log("d3d compiler (ps): \n------------\n%s------------\n", error);
 	}
 
-	if (FAILED(hr))
-	{
-		log("renderer: failed to compile pixel shader.\n");
+	HR_ASSERT("failed to compile pixel shader");
 
-		return;
-	}
+	hr = device->CreatePixelShader(reinterpret_cast<const DWORD*>(blob->GetBufferPointer()), &pixel_shader);
+	HR_ASSERT("failed to create pixel shader");
 
-	hr = device->CreateVertexShader(VS->GetBufferPointer(), VS->GetBufferSize(), nullptr, &vs);
+	if (blob) blob->Release();
+	if (err) err->Release();
 
-	if (FAILED(hr))
-	{
-		log("renderer: failed to create vertex shader.\n");
+	ShowWindow(window_handle, SW_SHOW);
 
-		return;
-	}
-
-	hr = device->CreatePixelShader(PS->GetBufferPointer(), PS->GetBufferSize(), nullptr, &ps);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to create pixel shader.\n");
-
-		return;
-	}
-
-	device_ctx->VSSetShader(vs, nullptr, 0);
-	device_ctx->PSSetShader(ps, nullptr, 0);
-
-	D3D11_BUFFER_DESC bd;
-	ZeroMemory(&bd, sizeof(bd));
-
-	bd.Usage = D3D11_USAGE_DYNAMIC;
-	bd.ByteWidth = sizeof(VERTEX) * _countof(vertices);
-	bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-	hr = device->CreateBuffer(&bd, NULL, &vertex_buffer);
-
-	if (FAILED(hr) || !vertex_buffer)
-	{
-		log("renderer: failed to create vertex buffer.\n");
-
-		return;
-	}
-
-	// copy the vertices into the buffer
-	D3D11_MAPPED_SUBRESOURCE ms;
-	hr = device_ctx->Map(vertex_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to map vertex buffer.\n");
-
-		return;
-	}
-
-	memcpy(ms.pData, vertices, sizeof(vertices));
-	device_ctx->Unmap(vertex_buffer, NULL);
-
-	D3D11_INPUT_ELEMENT_DESC ied[] =
-	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-	};
-
-	hr = device->CreateInputLayout(ied, 2, VS->GetBufferPointer(), VS->GetBufferSize(), &layout);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to create input layout.\n");
-
-		return;
-	}
-
-	device_ctx->IASetInputLayout(layout);
-
-	ZeroMemory(&bd, sizeof(bd));
-
-	bd.Usage = D3D11_USAGE_DYNAMIC;
-	bd.ByteWidth = 16;
-	bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	bd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-	hr = device->CreateBuffer(&bd, NULL, &ps_constant_buffer);
-
-	if (FAILED(hr) || !ps_constant_buffer)
-	{
-		log("renderer: failed to create vs constant buffer.\n");
-
-		return;
-	}
-
-	hr = device_ctx->Map(ps_constant_buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to map vs constant buffer.\n");
-
-		return;
-	}
-
-	memcpy(ms.pData, screen_size.data(), screen_size.size() * sizeof(uint32_t));
-	device_ctx->Unmap(ps_constant_buffer, NULL);
-
-	device_ctx->PSSetConstantBuffers(0, 1, &ps_constant_buffer);
-
-	D3D11_SAMPLER_DESC sd = {};
-	sd.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-	sd.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-	sd.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-	sd.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-	sd.BorderColor[0] = 1.0f;
-	sd.BorderColor[1] = 1.0f;
-	sd.BorderColor[2] = 1.0f;
-	sd.BorderColor[3] = 1.0f;
-	sd.ComparisonFunc = D3D11_COMPARISON_NEVER;
-
-	device->CreateSamplerState(&sd, &sampler_state);
+	this->device = device;
 }
 
 void renderer::create_window()
@@ -276,159 +146,139 @@ void renderer::create_window()
 		NULL,
 		L"V120Win",
 		L"Virtual Monitor View",
-		WS_OVERLAPPEDWINDOW,
-		300, 300,
+		WS_VISIBLE | WS_POPUP,
+		0, 0,
 		wr.right - wr.left, wr.bottom - wr.top,
 		nullptr, nullptr, g_instance, nullptr
 	);
 }
 
-void renderer::render()
+auto renderer::backup_params()
 {
-	float clear_color[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	IDirect3DSurface9* rt;
+	DWORD fvf;
+	IDirect3DVertexBuffer9* vb;
+	UINT vb_offset;
+	UINT vb_stride;
+	float shader_constant[] = { 0, 0, 0, 0 };
 
-	device_ctx->ClearRenderTargetView(backbuffer, clear_color);
+	IDirect3DBaseTexture9 *t1, *t2;
 
-	ID3D11Texture2D* texture = NULL;
-	
-	while (SUCCEEDED(surface_consumer->Dequeue(_uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&texture), nullptr, 0, 0)))
-	{
-		ID3D11ShaderResourceView* sv = nullptr;
+	IDirect3DVertexShader9* vs;
+	IDirect3DPixelShader9* ps;
 
-		device->CreateShaderResourceView(texture, nullptr, &sv);
-		device_ctx->PSSetShaderResources(0, 1, &sv);
-		device_ctx->PSSetSamplers(0, 1, &sampler_state);
+	device->GetRenderTarget(0, &rt);
+	device->GetFVF(&fvf);
+	device->GetStreamSource(0, &vb, &vb_offset, &vb_stride);
+	device->GetPixelShaderConstantF(0, shader_constant, 1);
+	device->GetTexture(0, &t1);
+	device->GetTexture(1, &t2);
+	device->GetVertexShader(&vs);
+	device->GetPixelShader(&ps);
 
-		UINT stride = sizeof(VERTEX);
-		UINT offset = 0;
+	return [=] {
+		device->SetRenderTarget(0, rt);
+		device->SetFVF(fvf);
+		device->SetStreamSource(0, vb, vb_offset, vb_stride);
+		device->SetPixelShaderConstantF(0, shader_constant, 1);
+		device->SetTexture(0, t1);
+		device->SetTexture(1, t2);
+		device->SetVertexShader(vs);
+		device->SetPixelShader(ps);
 
-		device_ctx->IASetVertexBuffers(0, 1, &vertex_buffer, &stride, &offset);
-		device_ctx->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		device_ctx->Draw(_countof(vertices), 0);
-
-		EnterCriticalSection(&queue_lock);
-		pending_surfaces--;
-		LeaveCriticalSection(&queue_lock);
-	}
-
-	swapchain->Present(1, 0);
+		if (rt) rt->Release();
+		if (vb) vb->Release();
+		if (t1) t1->Release();
+		if (t2) t2->Release();
+		if (vs) vs->Release();
+		if (ps) ps->Release();
+	};
 }
 
-void renderer::create_surface_queue(IDirect3DDevice9Ex* d3d9_device)
+void renderer::render()
 {
-	SURFACE_QUEUE_DESC Desc;
-	Desc.Width = static_cast<UINT>(screen_size[0]);
-	Desc.Height = static_cast<UINT>(screen_size[1]);
-	Desc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-	Desc.NumSurfaces = 3;
-	Desc.MetaDataSize = 0;
-	Desc.Flags = 0;
+	auto restore = backup_params();
 
-	auto hr = CreateSurfaceQueue(&Desc, device, &queue_9to11);
+	D3DCOLOR clear_color = D3DCOLOR_XRGB(45, 45, 45);
 
-	if (FAILED(hr))
-	{
-		log("renderer: failed to create surface queue. hr=%x\n", hr);
-		return;
-	}
+	IDirect3DSurface9* rt;
+	auto hr = self_swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &rt);
+	HR_ASSERT("failed to get backbuffer");
 
-	hr = queue_9to11->OpenProducer(d3d9_device, &surface_producer);
+	hr = device->SetRenderTarget(0, rt);
+	HR_ASSERT("failed to get backbuffer");
 
-	if (FAILED(hr))
-	{
-		log("renderer: failed to open producer. hr=%x\n", hr);
-		return;
-	}
+	hr = device->Clear(0, nullptr, D3DCLEAR_TARGET, clear_color, 1.0f, 0);
+	HR_ASSERT("failed to clear");
+	hr = device->BeginScene();
+	HR_ASSERT("failed to begin scene");
 
-	hr = queue_9to11->OpenConsumer(device, &surface_consumer);
+	hr = device->SetFVF(D3DFVF_XYZ);
+	HR_ASSERT("failed to set fvf");
+	hr = device->SetStreamSource(0, vertex_buffer, 0, sizeof(VERTEX));
+	HR_ASSERT("failed to set stream source");
 
-	if (FAILED(hr))
-	{
-		log("renderer: failed to open consumer. hr=%x\n", hr);
-		return;
-	}
+	float screen_size_f[] = { screen_size[0], screen_size[1], 0, 0 };
+	hr = device->SetPixelShaderConstantF(0, screen_size_f, 1);
+	HR_ASSERT("failed to set pixel shader constant float");
 
-	this->d3d9_device = d3d9_device;
-	InitializeCriticalSection(&queue_lock);
+	device->SetTexture(0, frames[0]);
+	device->SetTexture(1, frames[1]);
+
+	hr = device->SetVertexShader(vertex_shader);
+	HR_ASSERT("failed to set vertex shader");
+
+	hr = device->SetPixelShader(pixel_shader);
+	HR_ASSERT("failed to set pixel shader");
+
+	hr = device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+	HR_ASSERT("failed to draw");
+
+	hr = device->EndScene();
+	HR_ASSERT("failed to end scene");
+	hr = self_swapchain->Present(nullptr, nullptr, nullptr, nullptr, 0);
+	HR_ASSERT("failed to present");
+
+	rt->Release();
+
+	// restore all params
+	restore();
+
+	frame_count = 0;
 }
 
 void renderer::queue_frame()
 {
-	IDirect3DSurface9* buffer = nullptr;
-	auto hr = d3d9_device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &buffer);
+	auto target = frames[frame_count++];
 
-	if (FAILED(hr))
+	IDirect3DSurface9* buffer, * target_suf;
+	auto hr = target->GetSurfaceLevel(0, &target_suf);
+	HR_ASSERT("failed to get surface level");
+
+	hr = game_swapchain->GetBackBuffer(0, D3DBACKBUFFER_TYPE_MONO, &buffer);
+	HR_ASSERT("failed to get backbuffer");
+
+	hr = device->StretchRect(buffer, nullptr, target_suf, nullptr, D3DTEXF_NONE);
+	HR_ASSERT("failed to copy backbuffer");
+
+	if (frame_count >= 2)
 	{
-		log("renderer: failed to get dx9 backbuffer. hr=%x\n", hr);
-		return;
+		loop();
+		render();
 	}
 
-	D3DSURFACE_DESC desc{};
-	hr = buffer->GetDesc(&desc);
-
-	if (FAILED(hr))
-	{
-		log("renderer: failed to get backbuffer surface desc. hr=%x\n", hr);
-		buffer->Release();
-		return;
-	}
-
-	if (!copy_surface)
-	{
-		hr = d3d9_device->CreateRenderTarget(
-			desc.Width, desc.Height, desc.Format, desc.MultiSampleType,
-			desc.MultiSampleQuality, TRUE, &copy_surface, nullptr);
-
-		if (FAILED(hr) || copy_surface == nullptr) {
-			log("renderer: failed to create render target. hr=%x\n", hr);
-			buffer->Release();
-			return;
-		}
-	}
-
-	hr = d3d9_device->StretchRect(buffer, nullptr, copy_surface, nullptr, D3DTEXF_NONE);
-	if (FAILED(hr)) {
-		log("renderer: failed to copy backbuffer. hr=%x\n", hr);
-		buffer->Release();
-		return;
-	}
-
-	EnterCriticalSection(&queue_lock);
-	hr = surface_producer->Enqueue(copy_surface, nullptr, 0, 0);
-	if (FAILED(hr)) {
-		log("renderer: failed to enqueue buffer. hr=%x\n", hr);
-		buffer->Release();
-		LeaveCriticalSection(&queue_lock);
-		return;
-	}
-
-	pending_surfaces++;
-	LeaveCriticalSection(&queue_lock);
+	buffer->Release();
 }
 
-void renderer::start()
+void renderer::loop()
 {
-	std::thread([=] {
-		ShowWindow(window_handle, SW_SHOW);
+	MSG msg = {};
 
-		MSG msg = {};
-
-		while (true)
-		{
-			if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
-			{
-				TranslateMessage(&msg);
-				DispatchMessage(&msg);
-
-				if (msg.message == WM_QUIT)
-					break;
-
-				continue;
-			}
-
-			render();
-		}
-		}).detach();
+	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
 }
 
 LRESULT renderer::wndproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -438,6 +288,17 @@ LRESULT renderer::wndproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_DESTROY:
 	{
 		PostQuitMessage(0);
+		return 0;
+	}
+	case WM_ACTIVATE:
+	{
+		if (!device) break;
+
+		D3DDEVICE_CREATION_PARAMETERS params;
+		device->GetCreationParameters(&params);
+
+		SetForegroundWindow(params.hFocusWindow);
+		SetWindowPos(window_handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
 		return 0;
 	}
 	}
