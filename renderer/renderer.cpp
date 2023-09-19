@@ -80,6 +80,9 @@ void renderer::init(IDirect3DDevice9* device)
 	hr = backbuffer->GetDesc(&desc);
 	HR_ASSERT("failed to get game backbuffer desc");
 
+	screen_size[2] = desc.Width;
+	screen_size[3] = desc.Height;
+
 	for (size_t i = 0; i < frames.size(); i++)
 	{
 		hr = device->CreateTexture(desc.Width, desc.Height, 1, desc.Usage, desc.Format, desc.Pool, frames.data() + i, nullptr);
@@ -218,8 +221,7 @@ void renderer::render()
 	hr = device->SetStreamSource(0, vertex_buffer, 0, sizeof(VERTEX));
 	HR_ASSERT("failed to set stream source");
 
-	float screen_size_f[] = { screen_size[0], screen_size[1], 0, 0 };
-	hr = device->SetPixelShaderConstantF(0, screen_size_f, 1);
+	hr = device->SetPixelShaderConstantF(0, screen_size.data(), 1);
 	HR_ASSERT("failed to set pixel shader constant float");
 
 	device->SetTexture(0, frames[0]);
@@ -290,17 +292,17 @@ LRESULT renderer::wndproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		PostQuitMessage(0);
 		return 0;
 	}
-	case WM_ACTIVATE:
-	{
-		if (!device) break;
+	//case WM_ACTIVATE:
+	//{
+	//	if (!device) break;
 
-		D3DDEVICE_CREATION_PARAMETERS params;
-		device->GetCreationParameters(&params);
+	//	D3DDEVICE_CREATION_PARAMETERS params;
+	//	device->GetCreationParameters(&params);
 
-		SetForegroundWindow(params.hFocusWindow);
-		SetWindowPos(window_handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
-		return 0;
-	}
+	//	SetForegroundWindow(params.hFocusWindow);
+	//	SetWindowPos(window_handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_SHOWWINDOW);
+	//	return 0;
+	//}
 	}
 
 	return DefWindowProc(hWnd, message, wParam, lParam);

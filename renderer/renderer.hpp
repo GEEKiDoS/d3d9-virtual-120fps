@@ -14,7 +14,7 @@ private:
 	void render();
 	static LRESULT CALLBACK wndproc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-	std::array<float, 2> screen_size;
+	std::array<float, 4> screen_size;
 
 	static HWND window_handle;
 	static IDirect3DDevice9* device;
