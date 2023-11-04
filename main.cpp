@@ -79,16 +79,29 @@ extern "C"
 	}
 }
 
+typedef void (* XCgsqzn0000176_t)(int unk, int loglevel, const char *mod_name, const char *format, va_list va);
+XCgsqzn0000176_t XCgsqzn0000176;
+
+void vlog(const char* format, va_list va)
+{
+	if (XCgsqzn0000176)
+	{
+		XCgsqzn0000176(0, 3, "vmonitor", format, va);
+	}
+
+	if (logfile)
+	{
+		vfprintf(logfile, format, va);
+		fflush(logfile);
+	}
+}
+
 void log(const char* format, ...)
 {
-	if (!logfile) return;
-
 	va_list va;
 	va_start(va, format);
-	vfprintf(logfile, format, va);
+	vlog(format, va);
 	va_end(va);
-
-	fflush(logfile);
 }
 
 void do_fps_limit(double* last)
@@ -131,7 +144,15 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 	if (config.enable_logger)
 	{
-		logfile = fopen("d3d9_proxy.log", "w");
+		auto avs_core = GetModuleHandleA("avs2-core.dll");
+		if (avs_core)
+		{
+			XCgsqzn0000176 = (XCgsqzn0000176_t) GetProcAddress(avs_core, "XCgsqzn0000176");
+		}
+		else
+		{
+			logfile = fopen("d3d9_proxy.log", "w");
+		}
 	}
 
 	for (auto i = 0u; i < config.mode_count; i++)

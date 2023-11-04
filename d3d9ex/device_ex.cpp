@@ -3,6 +3,12 @@
 d3d9ex_device_proxy::d3d9ex_device_proxy(IDirect3DDevice9Ex* orig)
 {
 	m_device = orig;
+
+	const auto width = GetSystemMetrics(SM_CXSCREEN);
+	const auto height = GetSystemMetrics(SM_CYSCREEN);
+
+	monitor_renderer = new renderer(width, height);
+	monitor_renderer->init(m_device);
 }
 
 HRESULT __stdcall d3d9ex_device_proxy::QueryInterface(REFIID riid, void** ppvObj)
@@ -91,9 +97,6 @@ HRESULT __stdcall d3d9ex_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARA
 	IDirect3DSwapChain9* swapchain;
 	auto hr = m_device->CreateAdditionalSwapChain(pPresentationParameters, &swapchain);
 
-	monitor_renderer = new renderer(3840, 2160);
-	monitor_renderer->init(m_device);
-
 	if (SUCCEEDED(hr))
 	{
 		auto proxy = new d3d9ex_swapchain_proxy(swapchain, monitor_renderer, index);
@@ -107,8 +110,6 @@ HRESULT __stdcall d3d9ex_device_proxy::CreateAdditionalSwapChain(D3DPRESENT_PARA
 
 HRESULT __stdcall d3d9ex_device_proxy::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9** pSwapChain)
 {
-	log("device ex: get swapchain %i\n", iSwapChain);
-
 	IDirect3DSwapChain9* swapchain;
 	auto hr = m_device->GetSwapChain(iSwapChain, &swapchain);
 

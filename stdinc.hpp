@@ -23,6 +23,7 @@
 #include "d3d9ex/interface_ex.hpp"
 #include "d3d9/interface.hpp"
 
+void vlog(const char* format, va_list va);
 void log(const char* format, ...);
 void do_fps_limit(double* last);
 
